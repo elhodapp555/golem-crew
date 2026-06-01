@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herald — Golem Games Content Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal: #1D9E75; --teal-light: #E1F5EE; --teal-dark: #085041; --teal-mid: #0F6E56;
+  --amber: #BA7517; --amber-light: #FAEEDA;
+  --dark: #0c0c0c; --surface: #141414; --surface2: #1c1c1c; --surface3: #252525;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+  --text: #f0ede8; --text2: #9a9690; --text3: #525050;
+  --red: #E24B4A; --red-bg: rgba(226,75,74,0.1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; font-size: 14px; }
+.app { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.brand { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
+.brand-agent { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--teal); }
+.brand-store { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+.brand-desc { font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
+.nav-group { padding: 14px 10px 6px; }
+.nav-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); padding: 0 8px; margin-bottom: 5px; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text2); transition: all .15s; border: 1px solid transparent; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(29,158,117,0.1); color: var(--teal); border-color: rgba(29,158,117,0.18); }
+.nav-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.5; flex-shrink: 0; }
+.nav-item.active .nav-dot { opacity: 1; }
+.sources-scroll { padding: 0 10px 14px; max-height: 280px; overflow-y: auto; }
+.source-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; margin-bottom: 3px; border-radius: 5px; background: var(--surface2); font-size: 11px; color: var(--text2); font-family: 'DM Mono', monospace; }
+.source-row span { font-size: 10px; }
+.source-row .tag-mtg { color: #7B68EE; }
+.source-row .tag-pkm { color: #FFCB05; }
+.source-row .tag-op { color: #E24B4A; }
+.source-row .tag-gcg { color: #4CA3DD; }
+.source-row .tag-ygo { color: #BA7517; }
+.source-row .tag-retro { color: #1D9E75; }
+.source-row .tag-all { color: var(--text3); }
+.sidebar-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); line-height: 1.8; }
+.status-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); margin-right: 5px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.topbar-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 600; }
+.topbar-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.btn { padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--text); transition: all .15s; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+.btn:hover { background: var(--surface3); border-color: rgba(255,255,255,0.2); }
+.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primary:hover { background: var(--teal-mid); }
+.btn.danger { background: var(--red-bg); border-color: rgba(226,75,74,0.2); color: var(--red); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.btn-sm { padding: 4px 10px; font-size: 11px; border-radius: 4px; }
+.content { flex: 1; overflow-y: auto; padding: 22px 24px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.panel-hd { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel-lbl { font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text3); }
+.panel-bd { padding: 16px; }
+.field { margin-bottom: 12px; }
+.field-lbl { font-size: 11px; color: var(--text2); margin-bottom: 5px; display: block; }
+input[type=text], input[type=url], input[type=password], select, textarea { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; width: 100%; transition: border-color .15s; outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--teal); }
+select option { background: var(--surface2); }
+textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.row4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.topics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.topic-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: all .15s; position: relative; }
+.topic-card:hover { border-color: var(--border2); background: var(--surface3); }
+.topic-card.selected { border-color: var(--teal); background: rgba(29,158,117,0.07); }
+.topic-game { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); margin-bottom: 5px; font-family: 'DM Mono', monospace; }
+.topic-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 7px; }
+.topic-meta { font-size: 10px; color: var(--text3); display: flex; align-items: center; gap: 7px; }
+.heat { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.heat-high { background: var(--red); }
+.heat-med { background: var(--amber); }
+.heat-low { background: var(--text3); }
+.topic-check { position: absolute; top: 8px; right: 8px; width: 17px; height: 17px; border-radius: 50%; background: var(--teal); display: none; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
+.topic-card.selected .topic-check { display: flex; }
+.topic-scribe { position: absolute; bottom: 8px; right: 8px; font-size: 9px; color: var(--amber); font-family: 'DM Mono', monospace; display: none; }
+.topic-card.blog-flag .topic-scribe { display: block; }
+.selected-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(29,158,117,0.07); border: 1px solid rgba(29,158,117,0.15); border-radius: 8px; margin-top: 14px; }
+.selected-count { color: var(--teal); font-family: 'DM Mono', monospace; font-size: 12px; }
+.post-group { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.post-group-hd { padding: 9px 14px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+.tag { display: inline-flex; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-family: 'DM Mono', monospace; background: var(--surface3); color: var(--text2); }
+.tag.teal { background: rgba(29,158,117,0.12); color: var(--teal); }
+.post-platforms { display: grid; grid-template-columns: 1fr 1fr; }
+.post-col { padding: 14px; border-right: 1px solid var(--border); }
+.post-col:last-child { border-right: none; }
+.post-col-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.platform-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--text2); }
+.p-icon { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+.p-ig { background: linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color:#fff; }
+.p-fb { background: #1877F2; color:#fff; }
+.post-text { font-size: 13px; line-height: 1.65; color: var(--text); white-space: pre-wrap; }
+.post-hashtags { margin-top: 7px; font-size: 12px; color: var(--teal); line-height: 1.5; }
+.post-actions-row { display: flex; gap: 5px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.btn-approve { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: all .15s; }
+.ba-ok { background: rgba(29,158,117,0.12); color: var(--teal); }
+.ba-ok:hover { background: rgba(29,158,117,0.22); }
+.ba-edit { background: rgba(186,117,23,0.12); color: var(--amber); }
+.ba-edit:hover { background: rgba(186,117,23,0.22); }
+.ba-no { background: var(--red-bg); color: var(--red); }
+.ba-no:hover { background: rgba(226,75,74,0.18); }
+.status-badge { padding: 2px 7px; border-radius: 4px; font-size: 10px; font-family: 'DM Mono', monospace; }
+.sb-approved { background: rgba(29,158,117,0.12); color: var(--teal); }
+.sb-rejected { background: var(--red-bg); color: var(--red); }
+.sb-edited { background: rgba(186,117,23,0.12); color: var(--amber); }
+.queue-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.queue-row:last-child { border-bottom: none; }
+.queue-text { flex: 1; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.buffer-section { background: rgba(29,158,117,0.05); border: 1px solid rgba(29,158,117,0.15); border-radius: 8px; padding: 14px; margin-top: 14px; }
+.buffer-title { font-size: 12px; font-weight: 500; color: var(--teal); margin-bottom: 10px; }
+.saved-badge { font-size: 10px; color: var(--teal); font-family: 'DM Mono', monospace; background: rgba(29,158,117,0.1); padding: 2px 7px; border-radius: 4px; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 100; }
+.overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 22px; width: 500px; max-width: 94vw; }
+.modal-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+.loading { display: flex; align-items: center; gap: 10px; padding: 24px 16px; color: var(--text2); font-size: 13px; }
+.spinner { width: 15px; height: 15px; border: 2px solid var(--border2); border-top-color: var(--teal); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
+.empty-icon { font-size: 28px; opacity: 0.2; margin-bottom: 10px; }
+.info { background: rgba(29,158,117,0.07); border: 1px solid rgba(29,158,117,0.18); border-radius: 8px; padding: 11px 14px; font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+.info strong { color: var(--teal); }
+.notif { position: fixed; bottom: 22px; right: 22px; background: var(--surface); border: 1px solid var(--border2); border-left: 3px solid var(--teal); color: var(--text); padding: 11px 16px; border-radius: 8px; font-size: 13px; transform: translateY(70px); opacity: 0; transition: all .28s; z-index: 200; max-width: 300px; }
+.notif.show { transform: translateY(0); opacity: 1; }
+.source-section-hd { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); padding: 8px 8px 4px; font-weight: 500; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 5px; font-size: 12px; color: var(--text2); cursor: pointer; transition: background .12s; }
+.checkbox-row:hover { background: var(--surface2); }
+.checkbox-row input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--teal); cursor: pointer; flex-shrink: 0; }
+.checkbox-row .src-tag { font-size: 9px; font-family: 'DM Mono', monospace; padding: 1px 5px; border-radius: 3px; background: var(--surface3); margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-agent">Herald</div>
+    <div class="brand-store">Golem Games · Content Agent v2</div>
+    <div class="brand-desc">Scans TCG and retro gaming sources weekly, drafts posts in Golem's voice, flags blog topics for Scribe.</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Workflow</div>
+    <div class="nav-item active" onclick="nav('scan')"><div class="nav-dot"></div>1. Scan sources</div>
+    <div class="nav-item" onclick="nav('generate')"><div class="nav-dot"></div>2. Generate posts</div>
+    <div class="nav-item" onclick="nav('approve')"><div class="nav-dot"></div>3. Review & approve</div>
+    <div class="nav-item" onclick="nav('queue')"><div class="nav-dot"></div>4. Queue & schedule</div>
+    <div class="nav-item" onclick="nav('sources')"><div class="nav-dot"></div>Manage sources</div>
+    <div class="nav-item" onclick="nav('settings')"><div class="nav-dot"></div>Settings</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Active sources</div>
+  </div>
+  <div class="sources-scroll" id="sidebar-sources"></div>
+
+  <div class="sidebar-footer">
+    <div><span class="status-dot"></span>Herald active</div>
+    <div id="footer-email">herald.golemgames@gmail.com</div>
+    <div id="footer-buffer">Buffer: not connected</div>
+    <div id="footer-saved" style="color:var(--teal);display:none;">Settings saved locally</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Scan Sources</div>
+      <div class="topbar-sub" id="topbar-sub">Week of June 1, 2026</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" id="secondary-btn" style="display:none;" onclick="secondaryAction()"></button>
+      <button class="btn primary" id="primary-btn" onclick="primaryAction()">Run scan</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- SCAN -->
+    <div id="view-scan">
+      <div class="info"><strong>How Herald works:</strong> Select which sources to scan below, add any manual context, then run the scan. Herald surfaces trending topics ranked by engagement and relevance to your catalog. Pick topics and generate posts.</div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-lbl">Scan settings</span></div>
+        <div class="panel-bd">
+          <div class="row4" style="margin-bottom:12px;">
+            <div class="field">
+              <label class="field-lbl">Lookback window</label>
+              <select id="lookback"><option value="7">Last 7 days</option><option value="3">Last 3 days</option><option value="14">Last 14 days</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl">Game priority</label>
+              <select id="game-priority"><option value="all">All games</option><option value="MTG">MTG heavy</option><option value="Pokemon">Pokemon heavy</option><option value="One Piece">One Piece</option><option value="Gundam">Gundam heavy</option><option value="Retro Games">Retro heavy</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl">Max topics</label>
+              <select id="max-topics"><option value="6">6 topics</option><option value="9" selected>9 topics</option><option value="12">12 topics</option><option value="15">15 topics</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl">Min engagement</label>
+              <select id="min-eng"><option value="50">50+ upvotes</option><option value="100" selected>100+ upvotes</option><option value="500">500+ upvotes</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-lbl">Custom URL (Reddit thread, article, YouTube video, blog post)</label>
+            <input type="url" id="custom-url" placeholder="https://..." />
+          </div>
+          <div class="field">
+            <label class="field-lbl">Custom URL (Reddit thread, article, YouTube video, blog post)</label>
+            <input type="url" id="custom-url" placeholder="https://..." />
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-lbl" style="color:#5865F2;">⬡ Discord insights this week</span>
+          <span style="font-size:10px;color:var(--text3);">Fills in manually until Warden is live</span>
+        </div>
+        <div class="panel-bd">
+          <div class="row2" style="margin-bottom:12px;">
+            <div class="field">
+              <label class="field-lbl">🔥 What's the community excited about?</label>
+              <textarea id="discord-hype" rows="2" placeholder="e.g. Everyone's talking about the new Bloomburrow spoilers. Someone pulled a Mox in pack 1 at draft night..."></textarea>
+            </div>
+            <div class="field">
+              <label class="field-lbl">🛒 WTB signals — what are people hunting?</label>
+              <textarea id="discord-wtb" rows="2" placeholder="e.g. Three people asked for Ragavan this week. Someone's looking for PSA 9 Charizard base set..."></textarea>
+            </div>
+          </div>
+          <div class="row2" style="margin-bottom:12px;">
+            <div class="field">
+              <label class="field-lbl">🎉 Big pulls or wins to celebrate?</label>
+              <textarea id="discord-pulls" rows="2" placeholder="e.g. @Player pulled a foil Ragavan at Thursday Commander night. Someone found a CIB N64 Earthbound at a garage sale..."></textarea>
+            </div>
+            <div class="field">
+              <label class="field-lbl">📦 New arrivals or restocks this week?</label>
+              <textarea id="discord-arrivals" rows="2" placeholder="e.g. New Pokemon 151 sealed just landed. Batch of PSA graded MTG cards came in. NES lot from an estate sale..."></textarea>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label class="field-lbl">📅 Upcoming events to promote?</label>
+              <textarea id="discord-events" rows="2" placeholder="e.g. Commander night Friday 7pm. Bloomburrow prerelease next Saturday. Trade night Thursday the 5th, free food..."></textarea>
+            </div>
+            <div class="field">
+              <label class="field-lbl">💬 Anything else worth covering?</label>
+              <textarea id="discord-other" rows="2" placeholder="e.g. Store hit 1000 Discord members. Community feedback on new singles pricing. Funny moment from last night..."></textarea>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+            <button class="btn btn-sm" onclick="clearDiscord()">Clear all Discord fields</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="topics-section" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:600;">Select topics to post about</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="selectAll()">Select all</button>
+            <button class="btn btn-sm" onclick="deselectAll()">Clear all</button>
+          </div>
+        </div>
+        <div class="topics-grid" id="topics-grid"></div>
+        <div class="selected-bar" id="selected-bar" style="display:none;">
+          <span class="selected-count" id="selected-count">0 topics selected</span>
+          <button class="btn btn-sm primary" onclick="nav('generate');generatePosts()">Generate posts →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENERATE -->
+    <div id="view-generate" style="display:none;">
+      <div class="info"><strong>Generating:</strong> Each topic gets an Instagram caption and a Facebook post in Golem's voice. Topics marked <span style="color:var(--amber);font-family:'DM Mono',monospace;font-size:11px;">→ Scribe</span> are richer as blog posts.</div>
+      <div id="generate-area"><div class="empty"><div class="empty-icon">✦</div>Run a scan and select topics first.</div></div>
+    </div>
+
+    <!-- APPROVE -->
+    <div id="view-approve" style="display:none;">
+      <div class="info"><strong>Review queue:</strong> Approve, edit or reject each post. Editing a post auto-approves it.</div>
+      <div id="approve-area"><div class="empty"><div class="empty-icon">✦</div>No posts generated yet.</div></div>
+    </div>
+
+    <!-- QUEUE -->
+    <div id="view-queue" style="display:none;">
+      <div class="info"><strong>Ready to schedule:</strong> Copy posts individually or push all to Buffer.</div>
+      <div class="panel"><div id="queue-area"><div class="empty"><div class="empty-icon">✦</div>No approved posts yet.</div></div></div>
+      <div class="buffer-section">
+        <div class="buffer-title">Buffer integration <span id="buffer-saved-badge" style="display:none;" class="saved-badge">Saved</span></div>
+        <div class="row2" style="margin-bottom:10px;">
+          <div class="field">
+            <label class="field-lbl">Buffer access token</label>
+            <input type="password" id="buffer-token" placeholder="Buffer API token" />
+          </div>
+          <div class="field">
+            <label class="field-lbl">Profile IDs (comma separated)</label>
+            <input type="text" id="buffer-profiles" placeholder="e.g. 123abc, 456def" />
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" onclick="saveBuffer()">Save credentials</button>
+          <button class="btn btn-sm primary" id="push-buffer-btn" onclick="pushToBuffer()" disabled>Push all to Buffer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div id="view-sources" style="display:none;">
+      <div class="info"><strong>Manage sources:</strong> Toggle which sources Herald monitors. Changes are saved automatically.</div>
+      <div class="row2">
+        <div>
+          <!-- MTG -->
+          <div class="panel">
+            <div class="panel-hd"><span class="panel-lbl" style="color:#7B68EE;">⚔️ MTG</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <div class="source-section-hd">Reddit</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/magicTCG" checked> r/magicTCG <span class="src-tag" style="color:#7B68EE">MTG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/EDH" checked> r/EDH <span class="src-tag" style="color:#7B68EE">MTG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/mtgfinance" checked> r/mtgfinance <span class="src-tag" style="color:#7B68EE">MTG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/lrcast"> r/lrcast <span class="src-tag" style="color:#7B68EE">Draft</span></label>
+              <div class="source-section-hd">Blogs & sites</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="magic.wizards.com" checked> magic.wizards.com <span class="src-tag" style="color:#7B68EE">Official</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="articles.starcitygames.com" checked> Star City Games <span class="src-tag" style="color:#7B68EE">MTG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="channelfireball.com" checked> Channel Fireball <span class="src-tag" style="color:#7B68EE">MTG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="mtggoldfish.com" checked> MTGGoldfish <span class="src-tag" style="color:#7B68EE">Finance</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="blog.mtgprice.com"> MTGPrice Blog <span class="src-tag" style="color:#7B68EE">Finance</span></label>
+            </div>
+          </div>
+          <!-- Pokemon -->
+          <div class="panel" style="margin-top:14px;">
+            <div class="panel-hd"><span class="panel-lbl" style="color:#FFCB05;">🎴 Pokémon</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <div class="source-section-hd">Reddit</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/PokemonTCG" checked> r/PokemonTCG <span class="src-tag" style="color:#FFCB05">PKM</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/pokemon" checked> r/pokemon <span class="src-tag" style="color:#FFCB05">PKM</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/pkmntcgdeals"> r/pkmntcgdeals <span class="src-tag" style="color:#FFCB05">Deals</span></label>
+              <div class="source-section-hd">Blogs & sites</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="pokebeach.com" checked> PokéBeach <span class="src-tag" style="color:#FFCB05">PKM</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="pokemon.com/news" checked> Pokemon.com News <span class="src-tag" style="color:#FFCB05">Official</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="limitless.tcg.gg"> Limitless TCG <span class="src-tag" style="color:#FFCB05">Meta</span></label>
+            </div>
+          </div>
+        </div>
+        <div>
+          <!-- One Piece + Gundam -->
+          <div class="panel">
+            <div class="panel-hd"><span class="panel-lbl" style="color:#E24B4A;">☠️ One Piece + 🤖 Gundam</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <div class="source-section-hd">Reddit</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/OnePieceTCG" checked> r/OnePieceTCG <span class="src-tag" style="color:#E24B4A">OP</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/OnePiece" checked> r/OnePiece <span class="src-tag" style="color:#E24B4A">OP</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/GundamCardGame" checked> r/GundamCardGame <span class="src-tag" style="color:#4CA3DD">GCG</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/Gundam" checked> r/Gundam <span class="src-tag" style="color:#4CA3DD">GCG</span></label>
+              <div class="source-section-hd">Official</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="en.onepiece-cardgame.com" checked> OP Official site <span class="src-tag" style="color:#E24B4A">Official</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="gundam-cardgame.com" checked> Gundam Card Game <span class="src-tag" style="color:#4CA3DD">Official</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="gundamcard.gg"> GundamCard.gg <span class="src-tag" style="color:#4CA3DD">Meta</span></label>
+            </div>
+          </div>
+          <!-- Yu-Gi-Oh -->
+          <div class="panel" style="margin-top:14px;">
+            <div class="panel-hd"><span class="panel-lbl" style="color:#BA7517;">👁️ Yu-Gi-Oh</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <label class="checkbox-row"><input type="checkbox" data-src="r/yugioh" checked> r/yugioh <span class="src-tag" style="color:#BA7517">YGO</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/yugiohshowcase"> r/yugiohshowcase <span class="src-tag" style="color:#BA7517">YGO</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="ygorganization.com"> YGOrganization <span class="src-tag" style="color:#BA7517">News</span></label>
+            </div>
+          </div>
+          <!-- Retro Games -->
+          <div class="panel" style="margin-top:14px;">
+            <div class="panel-hd"><span class="panel-lbl" style="color:#1D9E75;">🕹️ Retro Games</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <div class="source-section-hd">Reddit</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/retrogaming" checked> r/retrogaming <span class="src-tag" style="color:#1D9E75">Retro</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/gamecollecting" checked> r/gamecollecting <span class="src-tag" style="color:#1D9E75">Retro</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/NES"> r/NES <span class="src-tag" style="color:#1D9E75">Retro</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/SNES"> r/SNES <span class="src-tag" style="color:#1D9E75">Retro</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/n64"> r/n64 <span class="src-tag" style="color:#1D9E75">Retro</span></label>
+              <div class="source-section-hd">Sites & blogs</div>
+              <label class="checkbox-row"><input type="checkbox" data-src="timeextension.com" checked> Time Extension <span class="src-tag" style="color:#1D9E75">News</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="retrododo.com" checked> Retro Dodo <span class="src-tag" style="color:#1D9E75">News</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="pricecharting.com" checked> PriceCharting <span class="src-tag" style="color:#1D9E75">Prices</span></label>
+            </div>
+          </div>
+          <!-- General -->
+          <div class="panel" style="margin-top:14px;">
+            <div class="panel-hd"><span class="panel-lbl">🌐 General TCG</span></div>
+            <div class="panel-bd" style="padding:8px 12px;">
+              <label class="checkbox-row"><input type="checkbox" data-src="r/tradingcardgames" checked> r/tradingcardgames <span class="src-tag">All</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="r/whatnot" checked> r/whatnot <span class="src-tag">All</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="tcgplayer.com/content" checked> TCGPlayer Blog <span class="src-tag">All</span></label>
+              <label class="checkbox-row"><input type="checkbox" data-src="bandai.com/tcg"> Bandai TCG News <span class="src-tag">Official</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" style="display:none;">
+      <div class="info"><strong>Settings are saved to your browser</strong> — you only need to enter these once per device.</div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-lbl">Buffer</span><span id="settings-buffer-badge" style="display:none;" class="saved-badge">Saved</span></div>
+        <div class="panel-bd">
+          <div class="row2">
+            <div class="field"><label class="field-lbl">Buffer access token</label><input type="password" id="s-buffer-token" placeholder="Buffer API token" /></div>
+            <div class="field"><label class="field-lbl">Profile IDs</label><input type="text" id="s-buffer-profiles" placeholder="123abc, 456def" /></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-lbl">Store info</span></div>
+        <div class="panel-bd">
+          <div class="row2">
+            <div class="field"><label class="field-lbl">Store name</label><input type="text" id="s-store-name" value="Golem Games" /></div>
+            <div class="field"><label class="field-lbl">Instagram handle</label><input type="text" id="s-ig-handle" value="@golemgames305" /></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label class="field-lbl">Address</label><input type="text" id="s-address" value="16460 ne 16th av, north miami beach" /></div>
+            <div class="field"><label class="field-lbl">Hours</label><input type="text" id="s-hours" value="2pm-midnight daily" /></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn primary" onclick="saveAllSettings()">Save all settings</button>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit post</div>
+    <div class="modal-sub" id="edit-sub"></div>
+    <textarea id="edit-ta" style="width:100%;min-height:130px;"></textarea>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;" id="edit-hint"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEdit()">Cancel</button>
+      <button class="btn primary" onclick="saveEdit()">Save & approve</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+const API = 'https://api.anthropic.com/v1/messages';
+const LS = 'herald_v2_';
+
+// VOICE PROMPT
+function buildVoice() {
+  const s = loadSettings();
+  return `You are Herald, the content agent for Golem Games — North Miami Beach's top-rated TCG and retro gaming shop.
+
+STORE:
+- Name: ${s.storeName}
+- Magic heavy WPN store and official Bandai TCG+ store
+- Commander nights Thursday, Friday and Saturday at 730
+- Products: Magic: The Gathering, Pokemon, One Piece, Gundam, Yu-Gi-Oh, sports cards, vintage video games, retro consoles, comic books
+- Open ${s.hours}
+- Address: ${s.address}
+- golemgames.co | ${s.igHandle} | Oracle@GolemGames.co
+
+VOICE (follow strictly):
+- NEVER use em dashes. Commas or plain hyphens only.
+- No Oxford comma: "food, drinks and games"
+- Numbers always numerals: 730, 7pm, 5th, 16460
+- Address lowercase: "${s.address}"
+- One exclamation point per post max
+- Never "We are pleased to announce" or any corporate language
+- Knowledgeable but never gatekeeping
+- Community-first, never transactional
+- Miami energy: casual swagger, never sloppy
+- Drop credentials naturally, woven in not announced
+- Treat reader like they're already in the club
+- Sentence fragments are fine when they land
+
+INSTAGRAM: Short, punchy, hook in first line. 1-2 emojis max. End with "link in bio", "DM us", or "come see us". Hashtags: ${s.igHandle.replace('@','#')} + game tag + #northmiamibeach. Caption and hashtags are separate fields.
+
+FACEBOOK: Slightly longer, warmer, no hashtags, end with warm CTA like "come pull up".
+
+BLOG FLAG: If a topic is richer than a social post, set blog_flag: true for Scribe.
+
+RETRO GAMES angle: When covering retro games, lean into the treasure hunt — finding hidden gems, shelf prices vs real value, console restoration, nostalgia. We test all consoles by hand.`;
+}
+
+const SAMPLE_TOPICS = [
+  {game:'MTG', title:'Thunder Junction singles cooling, great time to buy into the format', source:'r/mtgfinance', heat:'high', upvotes:2341, blog_hint:true},
+  {game:'Pokemon', title:'SV 151 PSA 10 Charizard still pulling record prices', source:'r/PokemonTCG', heat:'high', upvotes:1876, blog_hint:true},
+  {game:'MTG', title:'Bloomburrow Commander precons announced, community hyped', source:'magic.wizards.com', heat:'high', upvotes:3102, blog_hint:false},
+  {game:'One Piece', title:'OP-09 Emperors in the New World dropping, Luffy decks going off', source:'r/OnePieceTCG', heat:'med', upvotes:892, blog_hint:false},
+  {game:'Gundam', title:'New Gundam TCG players looking for local shops in South Florida', source:'r/GundamCardGame', heat:'med', upvotes:441, blog_hint:false},
+  {game:'Retro Games', title:'NES cartridge prices stabilizing after 2024 correction, good buying window', source:'r/gamecollecting', heat:'high', upvotes:1102, blog_hint:true},
+  {game:'Retro Games', title:'SNES RPG hidden gems that still go for under $20', source:'r/retrogaming', heat:'med', upvotes:784, blog_hint:true},
+  {game:'Pokemon', title:'Temporal Forces sealed box value breakdown for collectors', source:'r/PokemonTCG', heat:'low', upvotes:567, blog_hint:true},
+  {game:'Yu-Gi-Oh', title:'New ban list drops, Kashtira finally gets hit hard', source:'r/yugioh', heat:'high', upvotes:4201, blog_hint:false},
+  {game:'Retro Games', title:'N64 collecting in 2025, what to grab before prices move again', source:'timeextension.com', heat:'med', upvotes:null, blog_hint:true},
+  {game:'MTG', title:'WPN prereleases this weekend, what to expect from Bloomburrow sealed', source:'channelfireball.com', heat:'med', upvotes:788, blog_hint:false},
+  {game:'General', title:'Whatnot TCG sales up 40% YoY, LGS opportunity growing', source:'r/whatnot', heat:'med', upvotes:612, blog_hint:true},
+];
+
+let topics = [], selectedIdxs = new Set(), generatedPosts = [], editCtx = {};
+
+// SETTINGS — localStorage
+function saveLS(key, val) { try { localStorage.setItem(LS+key, JSON.stringify(val)); } catch(e){} }
+function loadLS(key, def) { try { const v = localStorage.getItem(LS+key); return v !== null ? JSON.parse(v) : def; } catch(e) { return def; } }
+
+function loadSettings() {
+  return {
+    storeName: loadLS('store_name', 'Golem Games'),
+    igHandle: loadLS('ig_handle', '@golemgames305'),
+    address: loadLS('address', '16460 ne 16th av, north miami beach'),
+    hours: loadLS('hours', '2pm-midnight daily'),
+    bufferToken: loadLS('buffer_token', ''),
+    bufferProfiles: loadLS('buffer_profiles', ''),
+  };
+}
+
+function saveAllSettings() {
+  saveLS('store_name', document.getElementById('s-store-name').value);
+  saveLS('ig_handle', document.getElementById('s-ig-handle').value);
+  saveLS('address', document.getElementById('s-address').value);
+  saveLS('hours', document.getElementById('s-hours').value);
+  const bt = document.getElementById('s-buffer-token').value;
+  const bp = document.getElementById('s-buffer-profiles').value;
+  if(bt) { saveLS('buffer_token', bt); saveLS('buffer_profiles', bp); }
+  document.getElementById('settings-buffer-badge').style.display = bt ? 'inline' : 'none';
+  document.getElementById('footer-saved').style.display = 'block';
+  updateFooterStatus();
+  notify('Settings saved to browser — will persist next visit');
+}
+
+function saveBuffer() {
+  const bt = document.getElementById('buffer-token').value;
+  const bp = document.getElementById('buffer-profiles').value;
+  if(bt) {
+    saveLS('buffer_token', bt);
+    saveLS('buffer_profiles', bp);
+    document.getElementById('buffer-saved-badge').style.display = 'inline';
+    document.getElementById('push-buffer-btn').disabled = false;
+    updateFooterStatus();
+    notify('Buffer credentials saved');
+  }
+}
+
+function updateFooterStatus() {
+  const s = loadSettings();
+  document.getElementById('footer-buffer').textContent = s.bufferToken ? 'Buffer: connected' : 'Buffer: not connected';
+  document.getElementById('footer-saved').style.display = 'block';
+  if(s.bufferToken) {
+    document.getElementById('buffer-token').value = s.bufferToken;
+    document.getElementById('buffer-profiles').value = s.bufferProfiles;
+    document.getElementById('s-buffer-token').value = s.bufferToken;
+    document.getElementById('s-buffer-profiles').value = s.bufferProfiles;
+    document.getElementById('push-buffer-btn').disabled = false;
+    document.getElementById('buffer-saved-badge').style.display = 'inline';
+    document.getElementById('settings-buffer-badge').style.display = 'inline';
+  }
+}
+
+function initSettings() {
+  const s = loadSettings();
+  document.getElementById('s-store-name').value = s.storeName;
+  document.getElementById('s-ig-handle').value = s.igHandle;
+  document.getElementById('s-address').value = s.address;
+  document.getElementById('s-hours').value = s.hours;
+  updateFooterStatus();
+  buildSidebarSources();
+}
+
+// SOURCES SIDEBAR
+function buildSidebarSources() {
+  const active = Array.from(document.querySelectorAll('input[data-src]:checked')).map(i => i.dataset.src);
+  const el = document.getElementById('sidebar-sources');
+  const colorMap = {'MTG':'#7B68EE','PKM':'#FFCB05','OP':'#E24B4A','GCG':'#4CA3DD','YGO':'#BA7517','Retro':'#1D9E75','Official':'var(--text3)','All':'var(--text3)','News':'#1D9E75','Finance':'#BA7517','Meta':'var(--teal)','Deals':'#FFCB05','Draft':'#7B68EE','Prices':'#1D9E75'};
+  const tagMap = {
+    'r/magicTCG':'MTG','r/EDH':'MTG','r/mtgfinance':'Finance','r/lrcast':'Draft',
+    'magic.wizards.com':'Official','articles.starcitygames.com':'MTG','channelfireball.com':'MTG','mtggoldfish.com':'Finance','blog.mtgprice.com':'Finance',
+    'r/PokemonTCG':'PKM','r/pokemon':'PKM','r/pkmntcgdeals':'Deals','pokebeach.com':'PKM','pokemon.com/news':'Official','limitless.tcg.gg':'Meta',
+    'r/OnePieceTCG':'OP','r/OnePiece':'OP','r/GundamCardGame':'GCG','r/Gundam':'GCG','en.onepiece-cardgame.com':'Official','gundam-cardgame.com':'Official','gundamcard.gg':'Meta',
+    'r/yugioh':'YGO','r/yugiohshowcase':'YGO','ygorganization.com':'News',
+    'r/retrogaming':'Retro','r/gamecollecting':'Retro','r/NES':'Retro','r/SNES':'Retro','r/n64':'Retro','timeextension.com':'News','retrododo.com':'News','pricecharting.com':'Prices',
+    'r/tradingcardgames':'All','r/whatnot':'All','tcgplayer.com/content':'All','bandai.com/tcg':'Official'
+  };
+  el.innerHTML = active.slice(0,14).map(s => {
+    const tag = tagMap[s] || 'All';
+    const color = colorMap[tag] || 'var(--text3)';
+    const label = s.startsWith('r/') ? s : s.split('.')[0];
+    return `<div class="source-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${label}</span><span style="color:${color}">${tag}</span></div>`;
+  }).join('') + (active.length > 14 ? `<div style="font-size:10px;color:var(--text3);padding:4px 8px;">+${active.length-14} more</div>` : '');
+}
+
+document.addEventListener('change', e => { if(e.target.dataset.src) { saveLS('sources', getActiveSources()); buildSidebarSources(); }});
+
+function getActiveSources() {
+  return Array.from(document.querySelectorAll('input[data-src]:checked')).map(i => i.dataset.src);
+}
+
+function restoreSources() {
+  const saved = loadLS('sources', null);
+  if(saved) {
+    document.querySelectorAll('input[data-src]').forEach(cb => {
+      cb.checked = saved.includes(cb.dataset.src);
+    });
+  }
+}
+
+// NAV
+function nav(view) {
+  ['scan','generate','approve','queue','sources','settings'].forEach((v,i) => {
+    document.getElementById('view-'+v).style.display = v===view?'block':'none';
+    if(document.querySelectorAll('.nav-item')[i]) document.querySelectorAll('.nav-item')[i].classList.toggle('active', v===view);
+  });
+  const titles = {scan:'Scan Sources',generate:'Generate Posts',approve:'Review & Approve',queue:'Queue & Schedule',sources:'Manage Sources',settings:'Settings'};
+  document.getElementById('topbar-title').textContent = titles[view];
+  const pb = document.getElementById('primary-btn');
+  const sb = document.getElementById('secondary-btn');
+  if(view==='scan'){ pb.textContent='Run scan'; sb.style.display='none'; }
+  else if(view==='generate'){ pb.textContent='Regenerate all'; sb.textContent='← Back to scan'; sb.style.display='block'; }
+  else if(view==='approve'){ pb.textContent='Approve all'; sb.textContent='← Back'; sb.style.display='block'; }
+  else if(view==='queue'){ pb.textContent='Copy all'; sb.textContent='← Back'; sb.style.display='block'; }
+  else { pb.textContent=''; pb.style.display='none'; sb.style.display='none'; return; }
+  pb.style.display='block';
+}
+
+function primaryAction() {
+  const active = document.querySelector('.nav-item.active');
+  const idx = Array.from(document.querySelectorAll('.nav-item')).indexOf(active);
+  if(idx===0) runScan();
+  else if(idx===1) generatePosts();
+  else if(idx===2) approveAll();
+  else if(idx===3) copyAll();
+}
+function secondaryAction() {
+  const active = document.querySelector('.nav-item.active');
+  const idx = Array.from(document.querySelectorAll('.nav-item')).indexOf(active);
+  if(idx===1||idx===2) nav('scan');
+  else if(idx===3) nav('approve');
+}
+
+// SCAN
+async function runScan() {
+  const btn = document.getElementById('primary-btn');
+  btn.disabled = true; btn.textContent = 'Scanning...';
+  const grid = document.getElementById('topics-grid');
+  const section = document.getElementById('topics-section');
+  section.style.display = 'block';
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div>Scanning sources...</div>';
+  await new Promise(r => setTimeout(r, 1800));
+
+  const customUrl = document.getElementById('custom-url').value.trim();
+  const manualNotes = buildDiscordContext();
+  const max = parseInt(document.getElementById('max-topics').value);
+  const priority = document.getElementById('game-priority').value;
+  const activeSrcs = getActiveSources();
+
+  topics = SAMPLE_TOPICS.filter(t => {
+    if(t.source.startsWith('r/')) return activeSrcs.includes(t.source);
+    const domain = t.source.split('/')[0];
+    return activeSrcs.some(s => s.includes(domain));
+  });
+  if(!topics.length) topics = [...SAMPLE_TOPICS];
+
+  if(manualNotes) topics.unshift({game:'STORE', title:manualNotes.substring(0,90)+(manualNotes.length>90?'...':''), source:'Manual input', heat:'high', upvotes:null, blog_hint:false});
+  if(customUrl) topics.unshift({game:'CUSTOM', title:'From: '+customUrl.substring(0,60), source:'Custom URL', heat:'high', upvotes:null, blog_hint:false});
+  if(priority!=='all') topics.sort((a,b)=>(b.game===priority?1:0)-(a.game===priority?1:0));
+  topics = topics.slice(0, max);
+  selectedIdxs.clear();
+
+  grid.innerHTML = '';
+  topics.forEach((t,i) => {
+    const card = document.createElement('div');
+    card.className = 'topic-card'+(t.blog_hint?' blog-flag':'');
+    card.onclick = () => toggleTopic(i, card);
+    card.innerHTML = `<div class="topic-check">✓</div><div class="topic-game">${t.game}${t.upvotes?' · '+t.upvotes.toLocaleString():''}</div><div class="topic-title">${t.title}</div><div class="topic-meta"><span class="heat heat-${t.heat}"></span><span>${t.source}</span></div><div class="topic-scribe">→ Scribe</div>`;
+    grid.appendChild(card);
+  });
+
+  updateSelectedBar();
+  btn.disabled = false; btn.textContent = 'Rescan';
+  notify('Scan complete — '+topics.length+' topics found');
+}
+
+function toggleTopic(i, card) {
+  if(selectedIdxs.has(i)) selectedIdxs.delete(i); else selectedIdxs.add(i);
+  card.classList.toggle('selected', selectedIdxs.has(i));
+  updateSelectedBar();
+}
+function selectAll() { document.querySelectorAll('.topic-card').forEach((c,i)=>{ c.classList.add('selected'); selectedIdxs.add(i); }); updateSelectedBar(); }
+function deselectAll() { document.querySelectorAll('.topic-card').forEach(c=>c.classList.remove('selected')); selectedIdxs.clear(); updateSelectedBar(); }
+function updateSelectedBar() {
+  const bar = document.getElementById('selected-bar');
+  bar.style.display = selectedIdxs.size>0?'flex':'none';
+  document.getElementById('selected-count').textContent = selectedIdxs.size+' topic'+(selectedIdxs.size!==1?'s':'')+' selected';
+}
+
+// GENERATE
+async function generatePosts() {
+  if(selectedIdxs.size===0){ notify('Select at least one topic first'); nav('scan'); return; }
+  const area = document.getElementById('generate-area');
+  const btn = document.getElementById('primary-btn');
+  btn.disabled=true; btn.textContent='Writing...';
+  area.innerHTML='<div class="loading"><div class="spinner"></div>Writing in Golem\'s voice...</div>';
+
+  const selected = Array.from(selectedIdxs).map(i=>topics[i]);
+  const manualNotes = buildDiscordContext();
+  const topicList = selected.map((t,i)=>`${i+1}. [${t.game}] ${t.title} (from ${t.source})`).join('\n');
+
+  try {
+    const res = await fetch(API, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:2000, system:buildVoice(),
+        messages:[{role:'user', content:`Generate social media posts for Golem Games for these topics:
+
+${topicList}
+${manualNotes?'\nStore context: '+manualNotes:''}
+
+For EACH topic return an instagram caption, instagram hashtags, facebook caption, and blog_flag.
+Return ONLY valid JSON, no markdown:
+{"posts":[{"topic":"","game":"","instagram":{"caption":"","hashtags":""},"facebook":{"caption":""},"blog_flag":false}]}`}]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    generatedPosts = JSON.parse(raw.replace(/```json|```/g,'').trim()).posts;
+    renderPosts(area);
+    syncApproveView();
+    notify(generatedPosts.length+' posts written by Herald');
+  } catch(e) {
+    area.innerHTML=`<div style="padding:16px;color:var(--red);font-size:13px;">Generation failed. Check API connection.<br><small style="color:var(--text3)">${e.message}</small></div>`;
+  }
+  btn.disabled=false; btn.textContent='Regenerate all';
+}
+
+function renderPosts(container) {
+  if(!generatedPosts.length) return;
+  container.innerHTML='';
+  generatedPosts.forEach((post,idx)=>{
+    const div=document.createElement('div');
+    div.className='post-group';
+    div.innerHTML=`<div class="post-group-hd"><span class="tag teal">${post.game}</span><span style="font-size:12px;color:var(--text2);flex:1;">${post.topic}</span>${post.blog_flag?'<span style="font-size:10px;color:var(--amber);font-family:\'DM Mono\',monospace;">→ Scribe recommended</span>':''}</div><div class="post-platforms"><div class="post-col"><div class="post-col-hd"><div class="platform-badge"><div class="p-icon p-ig">IG</div>Instagram</div><button class="btn btn-sm" onclick="openEdit(${idx},'instagram')">Edit</button></div><div class="post-text" id="ig-text-${idx}">${post.instagram.caption}</div><div class="post-hashtags" id="ig-tags-${idx}">${post.instagram.hashtags}</div></div><div class="post-col"><div class="post-col-hd"><div class="platform-badge"><div class="p-icon p-fb">FB</div>Facebook</div><button class="btn btn-sm" onclick="openEdit(${idx},'facebook')">Edit</button></div><div class="post-text" id="fb-text-${idx}">${post.facebook.caption}</div></div></div>`;
+    container.appendChild(div);
+  });
+}
+
+function syncApproveView() {
+  const area=document.getElementById('approve-area');
+  area.innerHTML='';
+  generatedPosts.forEach((post,idx)=>{
+    ['instagram','facebook'].forEach(platform=>{
+      const data=platform==='instagram'?post.instagram:post.facebook;
+      const div=document.createElement('div');
+      div.className='post-group'; div.id=`approve-card-${idx}-${platform}`;
+      div.innerHTML=`<div class="post-group-hd"><div class="p-icon ${platform==='instagram'?'p-ig':'p-fb'}" style="margin-right:4px;">${platform==='instagram'?'IG':'FB'}</div><span style="font-size:12px;color:var(--text2);flex:1;">${post.topic.substring(0,50)}${post.topic.length>50?'...':''}</span><span id="abadge-${idx}-${platform}"></span></div><div style="padding:12px 14px;"><div class="post-text">${data.caption}</div>${platform==='instagram'&&data.hashtags?`<div class="post-hashtags">${data.hashtags}</div>`:''}<div class="post-actions-row" id="aactions-${idx}-${platform}"><button class="btn-approve ba-ok" onclick="approveOne(${idx},'${platform}')">Approve</button><button class="btn-approve ba-edit" onclick="openEdit(${idx},'${platform}',true)">Edit & approve</button><button class="btn-approve ba-no" onclick="rejectOne(${idx},'${platform}')">Reject</button></div></div>`;
+      area.appendChild(div);
+    });
+  });
+}
+
+function approveOne(idx,platform){ setBadge(idx,platform,'approved'); addToQueue(idx,platform); }
+function rejectOne(idx,platform){ setBadge(idx,platform,'rejected'); }
+function approveAll(){
+  if(!generatedPosts.length){notify('Generate posts first');return;}
+  generatedPosts.forEach((_,idx)=>['instagram','facebook'].forEach(p=>{const a=document.getElementById(`aactions-${idx}-${p}`);if(a&&a.style.display!=='none')approveOne(idx,p);}));
+  notify('All posts approved');
+}
+function setBadge(idx,platform,status){
+  const badge=document.getElementById(`abadge-${idx}-${platform}`);
+  const actions=document.getElementById(`aactions-${idx}-${platform}`);
+  const l={approved:'Approved',rejected:'Rejected',edited:'Edited & Approved'};
+  const c={approved:'sb-approved',rejected:'sb-rejected',edited:'sb-edited'};
+  if(badge)badge.innerHTML=`<span class="status-badge ${c[status]}">${l[status]}</span>`;
+  if(actions)actions.style.display='none';
+}
+
+function addToQueue(idx,platform){
+  const post=generatedPosts[idx];
+  const data=platform==='instagram'?post.instagram:post.facebook;
+  const area=document.getElementById('queue-area');
+  const empty=area.querySelector('.empty');
+  if(empty)empty.remove();
+  const full=data.caption+(data.hashtags?'\n\n'+data.hashtags:'');
+  const row=document.createElement('div');
+  row.className='queue-row'; row.id=`queue-${idx}-${platform}`;
+  row.innerHTML=`<div class="p-icon ${platform==='instagram'?'p-ig':'p-fb'}">${platform==='instagram'?'IG':'FB'}</div><div class="queue-text">${data.caption}</div><button class="btn btn-sm" onclick="copyText(${idx},'${platform}')">Copy</button><button class="btn btn-sm danger" onclick="removeFromQueue(${idx},'${platform}')">Remove</button><span style="color:var(--teal);font-size:10px;font-family:'DM Mono',monospace;">Ready</span>`;
+  area.appendChild(row);
+}
+
+function removeFromQueue(idx,platform){
+  const row=document.getElementById(`queue-${idx}-${platform}`);
+  if(row)row.remove();
+  setBadge(idx,platform,'rejected');
+  notify('Removed from queue');
+}
+
+function copyText(idx,platform){
+  const post=generatedPosts[idx];
+  const data=platform==='instagram'?post.instagram:post.facebook;
+  const full=data.caption+(data.hashtags?'\n\n'+data.hashtags:'');
+  navigator.clipboard.writeText(full).then(()=>notify('Copied to clipboard'));
+}
+
+function copyAll(){
+  const rows=document.querySelectorAll('.queue-row .queue-text');
+  if(!rows.length){notify('Nothing in queue yet');return;}
+  navigator.clipboard.writeText(Array.from(rows).map(r=>r.textContent).join('\n\n---\n\n')).then(()=>notify('All posts copied'));
+}
+
+async function pushToBuffer(){
+  notify('Buffer push coming soon — use Copy for now');
+}
+
+// EDIT
+function openEdit(idx,platform,fromApprove=false){
+  editCtx={idx,platform,fromApprove};
+  const post=generatedPosts[idx];
+  const data=platform==='instagram'?post.instagram:post.facebook;
+  document.getElementById('edit-ta').value=data.caption+(platform==='instagram'&&data.hashtags?'\n\n'+data.hashtags:'');
+  document.getElementById('edit-sub').textContent=platform.charAt(0).toUpperCase()+platform.slice(1)+' · '+post.topic;
+  document.getElementById('edit-hint').textContent=platform==='instagram'?'Tip: put hashtags after two blank lines — they\'ll save separately.':'';
+  document.getElementById('edit-overlay').classList.add('open');
+}
+function closeEdit(){document.getElementById('edit-overlay').classList.remove('open');}
+function saveEdit(){
+  const val=document.getElementById('edit-ta').value;
+  const {idx,platform}=editCtx;
+  const post=generatedPosts[idx];
+  if(platform==='instagram'){
+    const parts=val.split(/\n\n(?=#)/);
+    post.instagram.caption=parts[0].trim();
+    post.instagram.hashtags=parts[1]?parts[1].trim():post.instagram.hashtags;
+    const t=document.getElementById(`ig-text-${idx}`);
+    const h=document.getElementById(`ig-tags-${idx}`);
+    if(t)t.textContent=post.instagram.caption;
+    if(h)h.textContent=post.instagram.hashtags;
+  } else {
+    post.facebook.caption=val.trim();
+    const t=document.getElementById(`fb-text-${idx}`);
+    if(t)t.textContent=post.facebook.caption;
+  }
+  closeEdit();
+  setBadge(idx,platform,'edited');
+  addToQueue(idx,platform);
+  syncApproveView();
+  notify('Post saved and approved');
+}
+
+function buildDiscordContext() {
+  const fields = [
+    { id: 'discord-hype',     label: 'Community excitement' },
+    { id: 'discord-wtb',      label: 'WTB signals' },
+    { id: 'discord-pulls',    label: 'Big pulls and wins' },
+    { id: 'discord-arrivals', label: 'New arrivals and restocks' },
+    { id: 'discord-events',   label: 'Upcoming events' },
+    { id: 'discord-other',    label: 'Other notes' },
+  ];
+  const lines = fields
+    .map(f => { const v = document.getElementById(f.id)?.value.trim(); return v ? `${f.label}: ${v}` : ''; })
+    .filter(Boolean);
+  return lines.length ? 'Discord insights this week —\n' + lines.join('\n') : '';
+}
+
+function clearDiscord() {
+  ['discord-hype','discord-wtb','discord-pulls','discord-arrivals','discord-events','discord-other']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  notify('Discord fields cleared');
+}
+
+
+  const n=document.getElementById('notif');
+  n.textContent=msg; n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),2800);
+}
+
+// INIT
+window.addEventListener('load',()=>{
+  restoreSources();
+  initSettings();
+  buildSidebarSources();
+});
+</script>
+</body>
+</html>
